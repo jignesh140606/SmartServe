@@ -63,15 +63,19 @@ export async function submitRating(
       return;
     }
 
-    // Find customer record
-    const customer = await Customer.findOne({ userId: req.user._id });
+    // Find or create linked customer record
+    let customer = await Customer.findOne({ userId: req.user._id });
     if (!customer) {
-      res.status(403).json({
-        success: false,
-        message: 'Only customers can submit ratings.',
-        data: null,
-      });
-      return;
+      if (req.user.role === 'customer') {
+        customer = await Customer.create({ userId: req.user._id, address: {} });
+      } else {
+        res.status(403).json({
+          success: false,
+          message: 'Only customers can submit ratings.',
+          data: null,
+        });
+        return;
+      }
     }
 
     // Verify the item exists and is Resolved/Closed

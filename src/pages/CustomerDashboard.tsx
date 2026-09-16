@@ -711,7 +711,7 @@ export function CustomerDashboard() {
                         >
                           <QrCode className="w-3.5 h-3.5" />
                         </Button>
-                        {(item.status === 'Resolved' || item.status === 'Closed') && (
+                        {item.status === 'Resolved' || item.status === 'Closed' ? (
                           myRatingsMap[item.id] ? (
                             <span
                               className="inline-flex items-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md cursor-default"
@@ -724,8 +724,8 @@ export function CustomerDashboard() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
-                              title="Rate Experience"
+                              className="h-8 px-2.5 text-amber-700 bg-amber-50/70 border-amber-300 hover:bg-amber-100/70 text-xs font-semibold shadow-2xs"
+                              title="Rate Service Experience (1-5 Stars)"
                               onClick={() =>
                                 setActiveRatingModal({
                                   isOpen: true,
@@ -735,10 +735,18 @@ export function CustomerDashboard() {
                                 })
                               }
                             >
-                              <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
-                              Rate
+                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 mr-1.5" />
+                              Rate CSAT
                             </Button>
                           )
+                        ) : (
+                          <span
+                            className="inline-flex items-center text-[11px] font-medium text-neutral-400 bg-neutral-100/70 border border-neutral-200 px-2 py-1 rounded-md cursor-help whitespace-nowrap"
+                            title="CSAT rating unlocks automatically once your issue is marked Resolved by the support team."
+                          >
+                            <Star className="w-3 h-3 text-neutral-300 mr-1" />
+                            Rate (On Resolve)
+                          </span>
                         )}
                         <div className="text-right ml-1">
                           <Badge status={item.status as any} dot size="sm">
@@ -904,7 +912,7 @@ export function CustomerDashboard() {
                               >
                                 <QrCode className="w-3.5 h-3.5" />
                               </Button>
-                              {(t.status === 'Resolved' || t.status === 'Closed') && (
+                              {t.status === 'Resolved' || t.status === 'Closed' ? (
                                 myRatingsMap[t._id] ? (
                                   <span
                                     className="inline-flex items-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md cursor-default"
@@ -917,8 +925,8 @@ export function CustomerDashboard() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
-                                    title="Rate Experience"
+                                    className="h-7 px-2 text-amber-700 bg-amber-50/70 border-amber-300 hover:bg-amber-100/70 text-xs font-semibold"
+                                    title="Rate Service Experience (1-5 Stars)"
                                     onClick={() =>
                                       setActiveRatingModal({
                                         isOpen: true,
@@ -929,9 +937,17 @@ export function CustomerDashboard() {
                                     }
                                   >
                                     <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
-                                    Rate
+                                    Rate CSAT
                                   </Button>
                                 )
+                              ) : (
+                                <span
+                                  className="inline-flex items-center text-[11px] font-medium text-neutral-400 bg-neutral-100/70 border border-neutral-200 px-2 py-0.5 rounded-md cursor-help whitespace-nowrap"
+                                  title="CSAT rating unlocks automatically once your ticket is marked Resolved by the support team."
+                                >
+                                  <Star className="w-3 h-3 text-neutral-300 mr-1" />
+                                  Rate (On Resolve)
+                                </span>
                               )}
                               {t.status === 'Open' && !t.assignedTo ? (
                                 <Button
@@ -1042,7 +1058,7 @@ export function CustomerDashboard() {
                               >
                                 <QrCode className="w-3.5 h-3.5" />
                               </Button>
-                              {(c.status === 'Resolved' || c.status === 'Closed') && (
+                              {c.status === 'Resolved' || c.status === 'Closed' ? (
                                 myRatingsMap[c._id] ? (
                                   <span
                                     className="inline-flex items-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md cursor-default"
@@ -1055,8 +1071,8 @@ export function CustomerDashboard() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
-                                    title="Rate Experience"
+                                    className="h-7 px-2 text-amber-700 bg-amber-50/70 border-amber-300 hover:bg-amber-100/70 text-xs font-semibold"
+                                    title="Rate Service Experience (1-5 Stars)"
                                     onClick={() =>
                                       setActiveRatingModal({
                                         isOpen: true,
@@ -1067,9 +1083,17 @@ export function CustomerDashboard() {
                                     }
                                   >
                                     <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
-                                    Rate
+                                    Rate CSAT
                                   </Button>
                                 )
+                              ) : (
+                                <span
+                                  className="inline-flex items-center text-[11px] font-medium text-neutral-400 bg-neutral-100/70 border border-neutral-200 px-2 py-0.5 rounded-md cursor-help whitespace-nowrap"
+                                  title="CSAT rating unlocks automatically once your complaint is marked Resolved by the support team."
+                                >
+                                  <Star className="w-3 h-3 text-neutral-300 mr-1" />
+                                  Rate (On Resolve)
+                                </span>
                               )}
                               {c.status === 'Open' && !c.assignedTo ? (
                                 <Button
