@@ -5,7 +5,6 @@ import Customer from '../models/Customer.js';
 import Employee from '../models/Employee.js';
 import { calculateSlaDeadline } from '../utils/sla.js';
 import { generateTrackingQRCode } from '../utils/qrGenerator.js';
-import { sendCreationEmail, sendStatusUpdateEmail, sendAssignmentEmail } from '../utils/emailService.js';
 
 /**
  * Create a new service ticket (Customer creates).
@@ -86,23 +85,6 @@ export async function createTicket(
         path: 'assignedTo',
         populate: { path: 'userId', select: 'name email phone role' },
       });
-
-    // Send creation email with QR code to customer
-    if (req.user?.email) {
-      sendCreationEmail(
-        req.user.email,
-        req.user.name || 'Customer',
-        'Ticket',
-        {
-          _id: newTicket._id.toString(),
-          title: newTicket.title,
-          category: newTicket.category,
-          priority: newTicket.priority,
-          slaDeadline: slaDeadline.toISOString(),
-        },
-        qrCode
-      ).catch((err) => console.error('[Email] Creation email failed:', err));
-    }
 
     res.status(201).json({
       success: true,
@@ -447,19 +429,6 @@ export async function updateTicketStatus(
         populate: { path: 'userId', select: 'name email phone role' },
       });
 
-    // Send status update email to customer
-    const customerData = (updatedTicket?.customerId as unknown) as Record<string, any>;
-    const customerUser = customerData?.userId as Record<string, any>;
-    if (customerUser?.email) {
-      sendStatusUpdateEmail(
-        String(customerUser.email),
-        String(customerUser.name || 'Customer'),
-        'Ticket',
-        ticket.title,
-        status as string
-      ).catch((err) => console.error('[Email] Status update email failed:', err));
-    }
-
     res.status(200).json({
       success: true,
       message: `Ticket status updated to ${status}.`,
@@ -550,24 +519,6 @@ export async function assignTicket(
         path: 'assignedTo',
         populate: { path: 'userId', select: 'name email phone role department designation' },
       });
-
-    // Send assignment email to customer
-    if (assignedEmployeeId && updatedTicket) {
-      const custData = (updatedTicket.customerId as unknown) as Record<string, any>;
-      const custUser = custData?.userId as Record<string, any>;
-      const empData = (updatedTicket.assignedTo as unknown) as Record<string, any>;
-      const empUser = empData?.userId as Record<string, any>;
-      if (custUser?.email) {
-        sendAssignmentEmail(
-          String(custUser.email),
-          String(custUser.name || 'Customer'),
-          'Ticket',
-          ticket.title,
-          String(empUser?.name || 'Support Specialist'),
-          ticket.slaDeadline?.toISOString()
-        ).catch((err) => console.error('[Email] Assignment email failed:', err));
-      }
-    }
 
     res.status(200).json({
       success: true,
