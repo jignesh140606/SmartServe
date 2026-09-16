@@ -8,6 +8,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { EmployeeDashboard } from './pages/EmployeeDashboard';
 import { CustomerDashboard } from './pages/CustomerDashboard';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { TrackingPage } from './pages/TrackingPage';
 
 /**
  * Root Index Redirector: Routes user to their role-specific dashboard if authenticated,
@@ -39,9 +40,10 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            {/* Public Authentication Routes */}
+            {/* Public Authentication & Tracking Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/track/:type/:id" element={<TrackingPage />} />
 
             {/* Role-Protected Routes */}
             <Route

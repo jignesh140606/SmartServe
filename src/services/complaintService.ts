@@ -40,6 +40,8 @@ export interface ComplaintData {
   priority: ComplaintPriority;
   status: ComplaintStatus;
   assignedTo?: EmployeeSummary | null;
+  slaDeadline?: string;
+  qrCode?: string;
   createdAt: string;
   updatedAt: string;
 }

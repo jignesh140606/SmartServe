@@ -13,6 +13,8 @@ export interface TicketData {
   priority: TicketPriority;
   status: TicketStatus;
   assignedTo?: EmployeeSummary | null;
+  slaDeadline?: string;
+  qrCode?: string;
   createdAt: string;
   updatedAt: string;
 }

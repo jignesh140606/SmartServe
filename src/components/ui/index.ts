@@ -7,3 +7,9 @@ export * from './Textarea';
 export * from './Table';
 export * from './Modal';
 export * from './SidebarLayout';
+export * from './SlaBadge';
+export * from './AttachmentSection';
+export * from './RatingModal';
+export * from './QRCodeModal';
+export * from './CannedResponsesModal';
+

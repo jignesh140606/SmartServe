@@ -21,6 +21,10 @@ import {
   TableHead,
   TableCell,
   Modal,
+  SlaBadge,
+  QRCodeModal,
+  RatingModal,
+  AttachmentSection,
 } from '../components/ui';
 import {
   LifeBuoy,
@@ -39,6 +43,9 @@ import {
   ArrowRight,
   Send,
   MessageSquarePlus,
+  QrCode,
+  Paperclip,
+  Star,
 } from 'lucide-react';
 import {
   complaintService,
@@ -68,6 +75,8 @@ interface CustomerFeedItem {
   priority: string;
   status: string;
   assignedToName?: string;
+  slaDeadline?: string;
+  qrCode?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +84,45 @@ interface CustomerFeedItem {
 export function CustomerDashboard() {
   const { user, logout } = useAuth();
   const [activeSection, setActiveSection] = useState<CustomerViewSection>('overview');
+
+  // Modal states for new features
+  const [activeQrModal, setActiveQrModal] = useState<{
+    isOpen: boolean;
+    itemType: 'ticket' | 'complaint';
+    itemId: string;
+    title: string;
+    qrCode?: string | null;
+  }>({
+    isOpen: false,
+    itemType: 'ticket',
+    itemId: '',
+    title: '',
+    qrCode: null,
+  });
+
+  const [activeRatingModal, setActiveRatingModal] = useState<{
+    isOpen: boolean;
+    itemType: 'Ticket' | 'Complaint';
+    itemId: string;
+    title: string;
+  }>({
+    isOpen: false,
+    itemType: 'Ticket',
+    itemId: '',
+    title: '',
+  });
+
+  const [activeAttachmentModal, setActiveAttachmentModal] = useState<{
+    isOpen: boolean;
+    itemType: 'ticket' | 'complaint';
+    itemId: string;
+    title: string;
+  }>({
+    isOpen: false,
+    itemType: 'ticket',
+    itemId: '',
+    title: '',
+  });
 
   // Tickets state
   const [tickets, setTickets] = useState<TicketData[]>([]);
@@ -283,6 +331,8 @@ export function CustomerDashboard() {
       priority: t.priority,
       status: t.status,
       assignedToName: t.assignedTo?.userId?.name,
+      slaDeadline: t.slaDeadline,
+      qrCode: t.qrCode,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     })),
@@ -295,6 +345,8 @@ export function CustomerDashboard() {
       priority: c.priority,
       status: c.status,
       assignedToName: c.assignedTo?.userId?.name,
+      slaDeadline: c.slaDeadline,
+      qrCode: c.qrCode,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     })),
@@ -598,6 +650,7 @@ export function CustomerDashboard() {
                             <Badge priority={item.priority as any} dot size="sm">
                               {item.priority}
                             </Badge>
+                            <SlaBadge deadline={item.slaDeadline} status={item.status} />
                           </div>
                           <p className="text-xs text-neutral-500 mt-0.5">
                             Category: <span className="text-neutral-700">{item.category}</span> • Specialist:{' '}
@@ -608,8 +661,60 @@ export function CustomerDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                        <div className="text-right">
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-neutral-500 hover:text-primary-600"
+                          title="View / Upload Documents"
+                          onClick={() =>
+                            setActiveAttachmentModal({
+                              isOpen: true,
+                              itemType: item.kind === 'Ticket' ? 'ticket' : 'complaint',
+                              itemId: item.id,
+                              title: item.title,
+                            })
+                          }
+                        >
+                          <Paperclip className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-neutral-500 hover:text-primary-600"
+                          title="Live QR Tracking"
+                          onClick={() =>
+                            setActiveQrModal({
+                              isOpen: true,
+                              itemType: item.kind === 'Ticket' ? 'ticket' : 'complaint',
+                              itemId: item.id,
+                              title: item.title,
+                              qrCode: item.qrCode,
+                            })
+                          }
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                        </Button>
+                        {(item.status === 'Resolved' || item.status === 'Closed') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
+                            title="Rate Experience"
+                            onClick={() =>
+                              setActiveRatingModal({
+                                isOpen: true,
+                                itemType: item.kind,
+                                itemId: item.id,
+                                title: item.title,
+                              })
+                            }
+                          >
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                            Rate
+                          </Button>
+                        )}
+                        <div className="text-right ml-1">
                           <Badge status={item.status as any} dot size="sm">
                             {item.status}
                           </Badge>
@@ -673,23 +778,24 @@ export function CustomerDashboard() {
                     <TableHead>Category</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>SLA Timer</TableHead>
                     <TableHead>Assigned Specialist</TableHead>
                     <TableHead>Last Activity</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activeSection === 'tickets' ? (
                     isTicketsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-600" />
                           Loading your service tickets...
                         </TableCell>
                       </TableRow>
                     ) : tickets.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <FileQuestion className="w-8 h-8 mx-auto mb-2 opacity-40" />
                           <p className="font-medium">No service tickets submitted yet.</p>
                         </TableCell>
@@ -721,6 +827,9 @@ export function CustomerDashboard() {
                               {t.status}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            <SlaBadge deadline={t.slaDeadline} status={t.status} />
+                          </TableCell>
                           <TableCell className="text-xs text-neutral-600">
                             {t.assignedTo?.userId?.name ? (
                               <span className="font-medium text-neutral-800">{t.assignedTo.userId.name}</span>
@@ -735,18 +844,71 @@ export function CustomerDashboard() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            {t.status === 'Open' && !t.assignedTo ? (
+                            <div className="flex items-center justify-end gap-1.5">
                               <Button
-                                variant="secondary"
+                                variant="ghost"
                                 size="sm"
-                                leftIcon={<Edit2 className="w-3 h-3" />}
-                                onClick={() => openEditTicketModal(t)}
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Documents & Evidence"
+                                onClick={() =>
+                                  setActiveAttachmentModal({
+                                    isOpen: true,
+                                    itemType: 'ticket',
+                                    itemId: t._id,
+                                    title: t.title,
+                                  })
+                                }
                               >
-                                Edit
+                                <Paperclip className="w-3.5 h-3.5" />
                               </Button>
-                            ) : (
-                              <span className="text-[11px] text-neutral-400 italic">Locked</span>
-                            )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Live QR Tracking"
+                                onClick={() =>
+                                  setActiveQrModal({
+                                    isOpen: true,
+                                    itemType: 'ticket',
+                                    itemId: t._id,
+                                    title: t.title,
+                                    qrCode: t.qrCode,
+                                  })
+                                }
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                              </Button>
+                              {(t.status === 'Resolved' || t.status === 'Closed') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
+                                  title="Rate Experience"
+                                  onClick={() =>
+                                    setActiveRatingModal({
+                                      isOpen: true,
+                                      itemType: 'Ticket',
+                                      itemId: t._id,
+                                      title: t.title,
+                                    })
+                                  }
+                                >
+                                  <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                                  Rate
+                                </Button>
+                              )}
+                              {t.status === 'Open' && !t.assignedTo ? (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  leftIcon={<Edit2 className="w-3 h-3" />}
+                                  onClick={() => openEditTicketModal(t)}
+                                >
+                                  Edit
+                                </Button>
+                              ) : null}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -754,14 +916,14 @@ export function CustomerDashboard() {
                   ) : (
                     isComplaintsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-600" />
                           Loading your complaints...
                         </TableCell>
                       </TableRow>
                     ) : complaints.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <FileQuestion className="w-8 h-8 mx-auto mb-2 opacity-40" />
                           <p className="font-medium">No complaints submitted yet.</p>
                         </TableCell>
@@ -793,6 +955,9 @@ export function CustomerDashboard() {
                               {c.status}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            <SlaBadge deadline={c.slaDeadline} status={c.status} />
+                          </TableCell>
                           <TableCell className="text-xs text-neutral-600">
                             {c.assignedTo?.userId?.name ? (
                               <span className="font-medium text-neutral-800">{c.assignedTo.userId.name}</span>
@@ -807,18 +972,71 @@ export function CustomerDashboard() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            {c.status === 'Open' && !c.assignedTo ? (
+                            <div className="flex items-center justify-end gap-1.5">
                               <Button
-                                variant="secondary"
+                                variant="ghost"
                                 size="sm"
-                                leftIcon={<Edit2 className="w-3 h-3" />}
-                                onClick={() => openEditComplaintModal(c)}
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Documents & Evidence"
+                                onClick={() =>
+                                  setActiveAttachmentModal({
+                                    isOpen: true,
+                                    itemType: 'complaint',
+                                    itemId: c._id,
+                                    title: c.title,
+                                  })
+                                }
                               >
-                                Edit
+                                <Paperclip className="w-3.5 h-3.5" />
                               </Button>
-                            ) : (
-                              <span className="text-[11px] text-neutral-400 italic">Locked</span>
-                            )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Live QR Tracking"
+                                onClick={() =>
+                                  setActiveQrModal({
+                                    isOpen: true,
+                                    itemType: 'complaint',
+                                    itemId: c._id,
+                                    title: c.title,
+                                    qrCode: c.qrCode,
+                                  })
+                                }
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                              </Button>
+                              {(c.status === 'Resolved' || c.status === 'Closed') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
+                                  title="Rate Experience"
+                                  onClick={() =>
+                                    setActiveRatingModal({
+                                      isOpen: true,
+                                      itemType: 'Complaint',
+                                      itemId: c._id,
+                                      title: c.title,
+                                    })
+                                  }
+                                >
+                                  <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                                  Rate
+                                </Button>
+                              )}
+                              {c.status === 'Open' && !c.assignedTo ? (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  leftIcon={<Edit2 className="w-3 h-3" />}
+                                  onClick={() => openEditComplaintModal(c)}
+                                >
+                                  Edit
+                                </Button>
+                              ) : null}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1098,6 +1316,44 @@ export function CustomerDashboard() {
             required
           />
         </form>
+      </Modal>
+
+      {/* QR Code Live Tracking Modal */}
+      <QRCodeModal
+        isOpen={activeQrModal.isOpen}
+        onClose={() => setActiveQrModal((prev) => ({ ...prev, isOpen: false }))}
+        itemType={activeQrModal.itemType}
+        itemId={activeQrModal.itemId}
+        itemTitle={activeQrModal.title}
+        qrCodeDataUrl={activeQrModal.qrCode}
+      />
+
+      {/* CSAT Customer Satisfaction Rating Modal */}
+      <RatingModal
+        isOpen={activeRatingModal.isOpen}
+        onClose={() => setActiveRatingModal((prev) => ({ ...prev, isOpen: false }))}
+        itemType={activeRatingModal.itemType}
+        itemId={activeRatingModal.itemId}
+        itemTitle={activeRatingModal.title}
+        onRatingSubmitted={() => {
+          fetchTickets();
+          fetchComplaints();
+        }}
+      />
+
+      {/* Documents & Evidence Attachment Modal */}
+      <Modal
+        isOpen={activeAttachmentModal.isOpen}
+        onClose={() => setActiveAttachmentModal((prev) => ({ ...prev, isOpen: false }))}
+        title={`Documents & Evidence — ${activeAttachmentModal.title}`}
+        size="lg"
+      >
+        <AttachmentSection
+          itemType={activeAttachmentModal.itemType}
+          itemId={activeAttachmentModal.itemId}
+          canUpload={true}
+          canDelete={true}
+        />
       </Modal>
     </SidebarLayout>
   );

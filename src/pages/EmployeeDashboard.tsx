@@ -21,6 +21,10 @@ import {
   TableHead,
   TableCell,
   Modal,
+  SlaBadge,
+  QRCodeModal,
+  AttachmentSection,
+  CannedResponsesModal,
 } from '../components/ui';
 import {
   TicketCheck,
@@ -41,6 +45,9 @@ import {
   LayoutDashboard,
   Flame,
   ArrowRight,
+  QrCode,
+  Paperclip,
+  MessageSquare,
 } from 'lucide-react';
 import {
   complaintService,
@@ -69,6 +76,8 @@ interface EmployeeWorkItem {
   status: string;
   customerName: string;
   customerEmail: string;
+  slaDeadline?: string;
+  qrCode?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +85,41 @@ interface EmployeeWorkItem {
 export function EmployeeDashboard() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<EmployeeViewTab>('overview');
+
+  // Modal states for new features
+  const [activeQrModal, setActiveQrModal] = useState<{
+    isOpen: boolean;
+    itemType: 'ticket' | 'complaint';
+    itemId: string;
+    title: string;
+    qrCode?: string | null;
+  }>({
+    isOpen: false,
+    itemType: 'ticket',
+    itemId: '',
+    title: '',
+    qrCode: null,
+  });
+
+  const [activeAttachmentModal, setActiveAttachmentModal] = useState<{
+    isOpen: boolean;
+    itemType: 'ticket' | 'complaint';
+    itemId: string;
+    title: string;
+  }>({
+    isOpen: false,
+    itemType: 'ticket',
+    itemId: '',
+    title: '',
+  });
+
+  const [activeCannedModal, setActiveCannedModal] = useState<{
+    isOpen: boolean;
+    itemCategory?: string;
+  }>({
+    isOpen: false,
+    itemCategory: undefined,
+  });
 
   // Data states
   const [tickets, setTickets] = useState<TicketData[]>([]);
@@ -185,6 +229,8 @@ export function EmployeeDashboard() {
       status: t.status,
       customerName: t.customerId?.userId?.name || 'Customer Account',
       customerEmail: t.customerId?.userId?.email || 'N/A',
+      slaDeadline: t.slaDeadline,
+      qrCode: t.qrCode,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     })),
@@ -198,6 +244,8 @@ export function EmployeeDashboard() {
       status: c.status,
       customerName: c.customerId?.userId?.name || 'Customer Account',
       customerEmail: c.customerId?.userId?.email || 'N/A',
+      slaDeadline: c.slaDeadline,
+      qrCode: c.qrCode,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     })),
@@ -510,6 +558,7 @@ export function EmployeeDashboard() {
                             <Badge status={item.status as any} dot size="sm">
                               {item.status}
                             </Badge>
+                            <SlaBadge deadline={item.slaDeadline} status={item.status} />
                           </div>
                           <p className="text-xs text-neutral-500 mt-0.5">
                             Customer: <strong className="text-neutral-700">{item.customerName}</strong> ({item.customerEmail}) •{' '}
@@ -518,8 +567,51 @@ export function EmployeeDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 self-end lg:self-center shrink-0">
-                        <span className="text-xs text-neutral-400 flex items-center gap-1">
+                      <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-neutral-500 hover:text-blue-600"
+                          title="Smart Auto-Replies"
+                          onClick={() => setActiveCannedModal({ isOpen: true, itemCategory: item.category })}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-neutral-500 hover:text-primary-600"
+                          title="View / Upload Documents & Evidence"
+                          onClick={() =>
+                            setActiveAttachmentModal({
+                              isOpen: true,
+                              itemType: item.kind === 'Ticket' ? 'ticket' : 'complaint',
+                              itemId: item.id,
+                              title: item.title,
+                            })
+                          }
+                        >
+                          <Paperclip className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-neutral-500 hover:text-primary-600"
+                          title="Live QR Tracking"
+                          onClick={() =>
+                            setActiveQrModal({
+                              isOpen: true,
+                              itemType: item.kind === 'Ticket' ? 'ticket' : 'complaint',
+                              itemId: item.id,
+                              title: item.title,
+                              qrCode: item.qrCode,
+                            })
+                          }
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                        </Button>
+
+                        <span className="text-xs text-neutral-400 flex items-center gap-1 mx-1">
                           <Clock className="w-3 h-3" />
                           {formatTimeAgo(item.updatedAt || item.createdAt)}
                         </span>
@@ -626,22 +718,24 @@ export function EmployeeDashboard() {
                     <TableHead>Category</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Current Status</TableHead>
+                    <TableHead>SLA Timer</TableHead>
                     <TableHead>Last Activity</TableHead>
-                    <TableHead className="min-w-[180px]">Update Status</TableHead>
+                    <TableHead className="min-w-[140px]">Update Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activeTab === 'my-work' ? (
                     isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-600" />
                           Loading assigned queue...
                         </TableCell>
                       </TableRow>
                     ) : filteredMyWork.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <FileQuestion className="w-8 h-8 mx-auto mb-2 opacity-40" />
                           <p className="font-medium">No assigned items found in your work queue.</p>
                         </TableCell>
@@ -688,6 +782,10 @@ export function EmployeeDashboard() {
                             </Badge>
                           </TableCell>
 
+                          <TableCell>
+                            <SlaBadge deadline={item.slaDeadline} status={item.status} />
+                          </TableCell>
+
                           <TableCell className="text-xs text-neutral-500 whitespace-nowrap">
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
@@ -714,20 +812,67 @@ export function EmployeeDashboard() {
                               <option value="Closed">Closed</option>
                             </select>
                           </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-blue-600"
+                                title="Smart Auto-Replies"
+                                onClick={() => setActiveCannedModal({ isOpen: true, itemCategory: item.category })}
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Documents & Evidence"
+                                onClick={() =>
+                                  setActiveAttachmentModal({
+                                    isOpen: true,
+                                    itemType: item.kind === 'Ticket' ? 'ticket' : 'complaint',
+                                    itemId: item.id,
+                                    title: item.title,
+                                  })
+                                }
+                              >
+                                <Paperclip className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Live QR Tracking"
+                                onClick={() =>
+                                  setActiveQrModal({
+                                    isOpen: true,
+                                    itemType: item.kind === 'Ticket' ? 'ticket' : 'complaint',
+                                    itemId: item.id,
+                                    title: item.title,
+                                    qrCode: item.qrCode,
+                                  })
+                                }
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))
                     )
                   ) : (
                     isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-600" />
                           Loading assigned items...
                         </TableCell>
                       </TableRow>
                     ) : filteredTabList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-neutral-400">
+                        <TableCell colSpan={9} className="text-center py-10 text-neutral-400">
                           <FileQuestion className="w-8 h-8 mx-auto mb-2 opacity-40" />
                           <p className="font-medium">No assigned items found.</p>
                         </TableCell>
@@ -771,6 +916,10 @@ export function EmployeeDashboard() {
                             </Badge>
                           </TableCell>
 
+                          <TableCell>
+                            <SlaBadge deadline={item.slaDeadline} status={item.status} />
+                          </TableCell>
+
                           <TableCell className="text-xs text-neutral-500 whitespace-nowrap">
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
@@ -795,6 +944,53 @@ export function EmployeeDashboard() {
                               <option value="Resolved">Resolved</option>
                               <option value="Closed">Closed</option>
                             </select>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-blue-600"
+                                title="Smart Auto-Replies"
+                                onClick={() => setActiveCannedModal({ isOpen: true, itemCategory: item.category })}
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Documents & Evidence"
+                                onClick={() =>
+                                  setActiveAttachmentModal({
+                                    isOpen: true,
+                                    itemType: activeTab === 'tickets' ? 'ticket' : 'complaint',
+                                    itemId: item._id,
+                                    title: item.title,
+                                  })
+                                }
+                              >
+                                <Paperclip className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-1.5 text-neutral-500 hover:text-primary-600"
+                                title="Live QR Tracking"
+                                onClick={() =>
+                                  setActiveQrModal({
+                                    isOpen: true,
+                                    itemType: activeTab === 'tickets' ? 'ticket' : 'complaint',
+                                    itemId: item._id,
+                                    title: item.title,
+                                    qrCode: item.qrCode,
+                                  })
+                                }
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -875,6 +1071,38 @@ export function EmployeeDashboard() {
             required
           />
         </form>
+      </Modal>
+
+      {/* QR Code Live Tracking Modal */}
+      <QRCodeModal
+        isOpen={activeQrModal.isOpen}
+        onClose={() => setActiveQrModal((prev) => ({ ...prev, isOpen: false }))}
+        itemType={activeQrModal.itemType}
+        itemId={activeQrModal.itemId}
+        itemTitle={activeQrModal.title}
+        qrCodeDataUrl={activeQrModal.qrCode}
+      />
+
+      {/* Smart Canned Responses Modal */}
+      <CannedResponsesModal
+        isOpen={activeCannedModal.isOpen}
+        onClose={() => setActiveCannedModal({ isOpen: false })}
+        itemCategory={activeCannedModal.itemCategory}
+      />
+
+      {/* Documents & Evidence Attachment Modal */}
+      <Modal
+        isOpen={activeAttachmentModal.isOpen}
+        onClose={() => setActiveAttachmentModal((prev) => ({ ...prev, isOpen: false }))}
+        title={`Documents & Evidence — ${activeAttachmentModal.title}`}
+        size="lg"
+      >
+        <AttachmentSection
+          itemType={activeAttachmentModal.itemType}
+          itemId={activeAttachmentModal.itemId}
+          canUpload={true}
+          canDelete={true}
+        />
       </Modal>
     </SidebarLayout>
   );

@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import Complaint, { ComplaintPriority, ComplaintStatus } from '../models/Complaint.js';
 import Customer from '../models/Customer.js';
 import Employee from '../models/Employee.js';
+import { calculateSlaDeadline } from '../utils/sla.js';
+import { generateTrackingQRCode } from '../utils/qrGenerator.js';
+import { sendCreationEmail, sendStatusUpdateEmail, sendAssignmentEmail } from '../utils/emailService.js';
 
 /**
  * Create a new complaint (Customer creates).
@@ -54,6 +57,9 @@ export async function createComplaint(
       }
     }
 
+    // Calculate SLA deadline based on priority
+    const slaDeadline = calculateSlaDeadline(complaintPriority);
+
     const newComplaint = await Complaint.create({
       customerId: customer._id,
       title: title.trim(),
@@ -62,7 +68,15 @@ export async function createComplaint(
       priority: complaintPriority,
       status: 'Open',
       assignedTo: null,
+      slaDeadline,
     });
+
+    // Generate QR code for tracking
+    const qrCode = await generateTrackingQRCode('complaint', newComplaint._id.toString());
+    if (qrCode) {
+      newComplaint.qrCode = qrCode;
+      await newComplaint.save();
+    }
 
     const populatedComplaint = await Complaint.findById(newComplaint._id)
       .populate({
@@ -73,6 +87,23 @@ export async function createComplaint(
         path: 'assignedTo',
         populate: { path: 'userId', select: 'name email phone role' },
       });
+
+    // Send creation email with QR code to customer
+    if (req.user?.email) {
+      sendCreationEmail(
+        req.user.email,
+        req.user.name || 'Customer',
+        'Complaint',
+        {
+          _id: newComplaint._id.toString(),
+          title: newComplaint.title,
+          category: newComplaint.category,
+          priority: newComplaint.priority,
+          slaDeadline: slaDeadline.toISOString(),
+        },
+        qrCode
+      ).catch((err) => console.error('[Email] Creation email failed:', err));
+    }
 
     res.status(201).json({
       success: true,
@@ -409,6 +440,19 @@ export async function updateComplaintStatus(
         populate: { path: 'userId', select: 'name email phone role' },
       });
 
+    // Send status update email to customer
+    const customerData = (updatedComplaint?.customerId as unknown) as Record<string, unknown>;
+    const customerUser = customerData?.userId as Record<string, unknown>;
+    if (customerUser?.email) {
+      sendStatusUpdateEmail(
+        String(customerUser.email),
+        String(customerUser.name || 'Customer'),
+        'Complaint',
+        complaint.title,
+        status as string
+      ).catch((err) => console.error('[Email] Status update email failed:', err));
+    }
+
     res.status(200).json({
       success: true,
       message: `Complaint status updated to ${status}.`,
@@ -501,6 +545,24 @@ export async function assignComplaint(
         path: 'assignedTo',
         populate: { path: 'userId', select: 'name email phone role department designation' },
       });
+
+    // Send assignment email to customer
+    if (assignedEmployeeId && updatedComplaint) {
+      const custData = (updatedComplaint.customerId as unknown) as Record<string, unknown>;
+      const custUser = custData?.userId as Record<string, unknown>;
+      const empData = (updatedComplaint.assignedTo as unknown) as Record<string, unknown>;
+      const empUser = empData?.userId as Record<string, unknown>;
+      if (custUser?.email) {
+        sendAssignmentEmail(
+          String(custUser.email),
+          String(custUser.name || 'Customer'),
+          'Complaint',
+          complaint.title,
+          String(empUser?.name || 'Support Specialist'),
+          complaint.slaDeadline?.toISOString()
+        ).catch((err) => console.error('[Email] Assignment email failed:', err));
+      }
+    }
 
     res.status(200).json({
       success: true,

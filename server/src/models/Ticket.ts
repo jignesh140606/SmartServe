@@ -12,6 +12,8 @@ export interface ITicket extends Document {
   priority: TicketPriority;
   status: TicketStatus;
   assignedTo?: mongoose.Types.ObjectId | null;
+  slaDeadline?: Date;
+  qrCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +66,14 @@ const ticketSchema = new Schema<ITicket>(
       ref: 'Employee',
       default: null,
       index: true,
+    },
+    slaDeadline: {
+      type: Date,
+      default: null,
+    },
+    qrCode: {
+      type: String,
+      default: '',
     },
   },
   {

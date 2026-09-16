@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
 import { notFound } from './middleware/notFound.js';
@@ -10,6 +11,9 @@ import customerRoutes from './routes/customer.routes.js';
 import employeeRoutes from './routes/employee.routes.js';
 import complaintRoutes from './routes/complaint.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
+import attachmentRoutes from './routes/attachment.routes.js';
+import ratingRoutes from './routes/rating.routes.js';
+import trackingRoutes, { cannedResponsesRouter } from './routes/tracking.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -72,12 +76,19 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+// Static files for document uploads
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/attachments', attachmentRoutes);
+app.use('/api/ratings', ratingRoutes);
+app.use('/api/track', trackingRoutes);
+app.use('/api/canned-responses', cannedResponsesRouter);
 
 // Unmatched Route (404) & Global Error Handler
 app.use(notFound);

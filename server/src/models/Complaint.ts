@@ -12,6 +12,8 @@ export interface IComplaint extends Document {
   priority: ComplaintPriority;
   status: ComplaintStatus;
   assignedTo?: mongoose.Types.ObjectId | null;
+  slaDeadline?: Date;
+  qrCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +66,14 @@ const complaintSchema = new Schema<IComplaint>(
       ref: 'Employee',
       default: null,
       index: true,
+    },
+    slaDeadline: {
+      type: Date,
+      default: null,
+    },
+    qrCode: {
+      type: String,
+      default: '',
     },
   },
   {
