@@ -26,19 +26,36 @@ export const CannedResponsesModal: React.FC<CannedResponsesModalProps> = ({
     if (isOpen) {
       trackingService
         .getCannedResponses()
-        .then((data) => setResponses(data))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setResponses(data);
+          }
+        })
         .catch((err) => console.error('Failed to load canned responses:', err));
     }
   }, [isOpen]);
 
-  const categories = ['all', ...Array.from(new Set(responses.map((r) => r.category)))];
+  const categories = [
+    'all',
+    ...Array.from(new Set(responses.map((r) => r.category).filter(Boolean))),
+  ];
+
+  const query = search.trim().toLowerCase();
 
   const filtered = responses.filter((item) => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    const itemCat = item.category || 'General';
+    const matchesCategory = selectedCategory === 'all' || itemCat === selectedCategory;
+
+    const title = (item.title || (item as any).label || '').toLowerCase();
+    const text = (item.text || (item as any).message || '').toLowerCase();
+    const tags = Array.isArray(item.tags) ? item.tags : [];
+
     const matchesSearch =
-      item.title.toLowerCase().includes(search.toLowerCase()) ||
-      item.text.toLowerCase().includes(search.toLowerCase()) ||
-      item.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
+      !query ||
+      title.includes(query) ||
+      text.includes(query) ||
+      tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(query));
+
     return matchesCategory && matchesSearch;
   });
 
@@ -102,67 +119,73 @@ export const CannedResponsesModal: React.FC<CannedResponsesModalProps> = ({
               No matching canned responses found.
             </div>
           ) : (
-            filtered.map((item) => (
-              <div
-                key={item.id}
-                className="p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-all space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-blue-600" />
-                    <h4 className="text-xs font-semibold text-gray-900">{item.title}</h4>
-                  </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                    {item.category}
-                  </span>
-                </div>
+            filtered.map((item) => {
+              const itemTitle = item.title || (item as any).label || 'Response Template';
+              const itemText = item.text || (item as any).message || '';
+              const itemTags = Array.isArray(item.tags) ? item.tags : [];
 
-                <p className="text-xs text-gray-600 whitespace-pre-line bg-gray-50/70 p-2.5 rounded-md border border-gray-100 leading-relaxed font-mono text-[11px]">
-                  {item.text}
-                </p>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex gap-1 flex-wrap">
-                    {item.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] text-gray-400">
-                        #{tag}
-                      </span>
-                    ))}
+              return (
+                <div
+                  key={item.id}
+                  className="p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-all space-y-2 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-blue-600" />
+                      <h4 className="text-xs font-semibold text-gray-900">{itemTitle}</h4>
+                    </div>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      {item.category}
+                    </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopy(item.id, item.text)}
-                      className="text-xs py-1 px-2"
-                    >
-                      {copiedId === item.id ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 mr-1" /> Copy
-                        </>
-                      )}
-                    </Button>
+                  <p className="text-xs text-gray-600 whitespace-pre-line bg-gray-50/70 p-2.5 rounded-md border border-gray-100 leading-relaxed font-mono text-[11px]">
+                    {itemText}
+                  </p>
 
-                    {onSelectResponse && (
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex gap-1 flex-wrap">
+                      {itemTags.map((tag) => (
+                        <span key={tag} className="text-[10px] text-gray-400">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2">
                       <Button
                         type="button"
+                        variant="outline"
                         size="sm"
-                        onClick={() => handleUse(item.text)}
-                        className="text-xs py-1 px-2.5"
+                        onClick={() => handleCopy(item.id, itemText)}
+                        className="text-xs py-1 px-2"
                       >
-                        Use Response
+                        {copiedId === item.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" /> Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 mr-1" /> Copy
+                          </>
+                        )}
                       </Button>
-                    )}
+
+                      {onSelectResponse && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleUse(itemText)}
+                          className="text-xs py-1 px-2.5"
+                        >
+                          Use Response
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
