@@ -188,3 +188,58 @@ export async function updateCustomer(
     next(error);
   }
 }
+
+/**
+ * Delete a customer and remove their login credentials (Admin only).
+ * DELETE /api/customers/:id
+ */
+export async function deleteCustomer(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid customer identifier format.',
+        data: null,
+      });
+      return;
+    }
+
+    let customer = await Customer.findById(id);
+    if (!customer) {
+      customer = await Customer.findOne({ userId: id });
+    }
+
+    if (!customer) {
+      res.status(404).json({
+        success: false,
+        message: 'Customer record not found.',
+        data: null,
+      });
+      return;
+    }
+
+    const userId = customer.userId;
+
+    // Delete customer profile
+    await Customer.findByIdAndDelete(customer._id);
+
+    // Delete linked user credentials so the customer cannot log in anymore
+    if (userId) {
+      await User.findByIdAndDelete(userId);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Customer account and login credentials successfully deleted.',
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

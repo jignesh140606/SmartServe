@@ -46,6 +46,10 @@ export const customerService = {
     const res = await api.put(`/customers/${id}`, payload);
     return res.data?.data?.customer;
   },
+
+  async deleteCustomer(id: string): Promise<void> {
+    await api.delete(`/customers/${id}`);
+  },
 };
 
 export default customerService;

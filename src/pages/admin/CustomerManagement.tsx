@@ -34,6 +34,7 @@ import {
   Edit2,
   Save,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import { customerService, type CustomerData, type UpdateCustomerPayload } from '../../services/customerService';
 import type { AxiosError } from 'axios';
@@ -102,6 +103,29 @@ export function CustomerManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Customer Deletion State
+  const [customerToDelete, setCustomerToDelete] = useState<CustomerData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await customerService.deleteCustomer(customerToDelete._id);
+      setCustomers((prev) => prev.filter((c) => c._id !== customerToDelete._id));
+      setToastMessage(`Customer "${customerToDelete.userId?.name || 'User'}" has been permanently deleted and login access revoked.`);
+      setCustomerToDelete(null);
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }>;
+      setDeleteError(axiosError.response?.data?.message || 'Failed to delete customer account.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     fetchCustomers();
@@ -408,6 +432,18 @@ export function CustomerManagement() {
                           >
                             Edit
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/80 text-xs"
+                            leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+                            onClick={() => {
+                              setDeleteError(null);
+                              setCustomerToDelete(c);
+                            }}
+                          >
+                            Delete
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -636,6 +672,81 @@ export function CustomerManagement() {
             </div>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!customerToDelete}
+        onClose={() => {
+          if (!isDeleting) {
+            setCustomerToDelete(null);
+            setDeleteError(null);
+          }
+        }}
+        title="Delete Customer Account"
+        description="Permanently remove customer profile and revoke login access"
+        size="md"
+      >
+        <div className="space-y-4 pt-2">
+          {deleteError && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+
+          <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 space-y-2">
+            <p className="text-sm text-neutral-800">
+              Are you sure you want to delete customer{' '}
+              <strong className="text-neutral-900">{customerToDelete?.userId?.name}</strong>?
+            </p>
+            <p className="text-xs text-neutral-500">
+              Email: <strong>{customerToDelete?.userId?.email}</strong>
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-rose-900">Login Access Will Be Completely Revoked</p>
+              <p className="text-rose-700 leading-relaxed">
+                This customer account and their user credentials will be permanently deleted from the database. They will no longer be able to log in to SmartServe.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-neutral-100">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isDeleting}
+              onClick={() => {
+                setCustomerToDelete(null);
+                setDeleteError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={isDeleting}
+              onClick={handleDeleteCustomer}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-1.5" />
+                  Confirm Delete Customer
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
