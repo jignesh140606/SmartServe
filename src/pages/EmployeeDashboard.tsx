@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   SidebarLayout,
@@ -25,6 +26,7 @@ import {
   QRCodeModal,
   AttachmentSection,
   CannedResponsesModal,
+  CustomerFeedbackSection,
 } from '../components/ui';
 import {
   TicketCheck,
@@ -48,6 +50,8 @@ import {
   QrCode,
   Paperclip,
   MessageSquare,
+  Star,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   complaintService,
@@ -60,6 +64,11 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from '../services/ticketService';
+import {
+  ratingService,
+  type RatingStats,
+  type RatingData,
+} from '../services/ratingService';
 import { formatTimeAgo, getPriorityWeight } from '../lib/dateUtils';
 import { AnalyticsView } from './shared/AnalyticsView';
 import { SettingsView } from './shared/SettingsView';
@@ -84,7 +93,12 @@ interface EmployeeWorkItem {
 
 export function EmployeeDashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<EmployeeViewTab>('overview');
+
+  // Rating & Feedback states
+  const [ratingStats, setRatingStats] = useState<RatingStats | null>(null);
+  const [recentRatings, setRecentRatings] = useState<RatingData[]>([]);
 
   // Modal states for new features
   const [activeQrModal, setActiveQrModal] = useState<{
@@ -149,12 +163,16 @@ export function EmployeeDashboard() {
   const fetchAssignedWork = async () => {
     try {
       setIsLoading(true);
-      const [ticketsData, complaintsData] = await Promise.all([
+      const [ticketsData, complaintsData, statsData, ratingsData] = await Promise.all([
         ticketService.getTickets().catch(() => []),
         complaintService.getComplaints().catch(() => []),
+        ratingService.getRatingStats().catch(() => null),
+        ratingService.getAllRatings().catch(() => []),
       ]);
       if (ticketsData) setTickets(ticketsData);
       if (complaintsData) setComplaints(complaintsData);
+      if (statsData) setRatingStats(statsData);
+      if (ratingsData) setRecentRatings(ratingsData);
     } catch {
       // Fallback
     } finally {
@@ -385,6 +403,18 @@ export function EmployeeDashboard() {
             Refresh
           </Button>
 
+          {user?.role === 'admin' && (
+            <Button
+              variant="primary"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-soft-xs"
+              leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+              onClick={() => navigate('/admin')}
+            >
+              Admin Center
+            </Button>
+          )}
+
           <Button variant="secondary" size="sm" leftIcon={<LogOut className="w-3.5 h-3.5" />} onClick={logout}>
             Sign Out
           </Button>
@@ -419,8 +449,8 @@ export function EmployeeDashboard() {
       ) : activeTab === 'overview' ? (
         /* 2. EMPLOYEE DASHBOARD OVERVIEW HOME VIEW */
         <div className="space-y-6">
-          {/* Personal Metric Cards (4 Cards) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Personal Metric Cards (5 Cards) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card hoverEffect>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
@@ -473,6 +503,34 @@ export function EmployeeDashboard() {
                   <span className="text-2xl font-bold text-neutral-900">{resolvedCount} Completed</span>
                   <Badge status="resolved" size="sm" dot>
                     Closed Out
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card hoverEffect className="border-amber-200/80 bg-gradient-to-br from-amber-50/40 via-white to-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">
+                    CSAT Satisfaction
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-soft-xs">
+                    <Star className="w-4 h-4 fill-white" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-amber-700">
+                      {ratingStats && ratingStats.totalRatings > 0
+                        ? Number(ratingStats.averageRating).toFixed(1)
+                        : recentRatings.length > 0
+                        ? (recentRatings.reduce((s, r) => s + r.rating, 0) / recentRatings.length).toFixed(1)
+                        : '5.0'}
+                    </span>
+                    <span className="text-xs font-semibold text-neutral-400">/ 5.0</span>
+                  </div>
+                  <Badge variant="warning" size="sm">
+                    {ratingStats?.totalRatings || recentRatings.length} Reviews
                   </Badge>
                 </div>
               </CardContent>
@@ -646,6 +704,13 @@ export function EmployeeDashboard() {
               </span>
             </CardFooter>
           </Card>
+
+          {/* Customer Satisfaction & Verified Feedback Section */}
+          <CustomerFeedbackSection
+            stats={ratingStats}
+            ratings={recentRatings}
+            isLoading={isLoading}
+          />
         </div>
       ) : (
         /* My Work (Combined) or Dedicated Views Table */

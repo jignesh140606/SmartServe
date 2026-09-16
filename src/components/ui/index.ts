@@ -12,4 +12,4 @@ export * from './AttachmentSection';
 export * from './RatingModal';
 export * from './QRCodeModal';
 export * from './CannedResponsesModal';
-
+export * from './CustomerFeedbackSection';

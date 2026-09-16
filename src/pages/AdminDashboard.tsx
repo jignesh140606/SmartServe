@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   SidebarLayout,
@@ -24,6 +25,7 @@ import {
   SlaBadge,
   QRCodeModal,
   AttachmentSection,
+  CustomerFeedbackSection,
 } from '../components/ui';
 import {
   Search,
@@ -47,8 +49,9 @@ import {
   QrCode,
   Paperclip,
   Star,
+  Briefcase,
 } from 'lucide-react';
-import { ratingService, type RatingStats } from '../services/ratingService';
+import { ratingService, type RatingStats, type RatingData } from '../services/ratingService';
 import { EmployeeManagement } from './admin/EmployeeManagement';
 import { CustomerManagement } from './admin/CustomerManagement';
 import {
@@ -88,10 +91,12 @@ interface UnifiedItem {
 
 export function AdminDashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
 
   // New Feature States
   const [ratingStats, setRatingStats] = useState<RatingStats | null>(null);
+  const [recentRatings, setRecentRatings] = useState<RatingData[]>([]);
   const [activeQrModal, setActiveQrModal] = useState<{
     isOpen: boolean;
     itemType: 'ticket' | 'complaint';
@@ -150,18 +155,20 @@ export function AdminDashboard() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [ticketsData, complaintsData, employeesData, customersData, statsData] = await Promise.all([
+      const [ticketsData, complaintsData, employeesData, customersData, statsData, ratingsData] = await Promise.all([
         ticketService.getTickets().catch(() => []),
         complaintService.getComplaints().catch(() => []),
         employeeService.getEmployees().catch(() => []),
         customerService.getCustomers().catch(() => []),
         ratingService.getRatingStats().catch(() => null),
+        ratingService.getAllRatings().catch(() => []),
       ]);
       if (ticketsData) setTickets(ticketsData);
       if (complaintsData) setComplaints(complaintsData);
       if (employeesData) setEmployees(employeesData);
       if (customersData) setCustomers(customersData);
       if (statsData) setRatingStats(statsData);
+      if (ratingsData) setRecentRatings(ratingsData);
     } catch {
       // Fallback
     } finally {
@@ -448,6 +455,15 @@ export function AdminDashboard() {
               Customers ({totalCustomersCount})
             </button>
           </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<Briefcase className="w-3.5 h-3.5" />}
+            onClick={() => navigate('/employee')}
+          >
+            Specialist Desk
+          </Button>
 
           <Button variant="secondary" size="sm" leftIcon={<LogOut className="w-3.5 h-3.5" />} onClick={logout}>
             Sign Out
@@ -821,6 +837,13 @@ export function AdminDashboard() {
               </span>
             </CardFooter>
           </Card>
+
+          {/* Customer Satisfaction & Verified Reviews Dashboard */}
+          <CustomerFeedbackSection
+            stats={ratingStats}
+            ratings={recentRatings}
+            isLoading={isLoading}
+          />
         </div>
       ) : activeTab === 'employees' ? (
         <EmployeeManagement />

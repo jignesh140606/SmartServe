@@ -290,3 +290,30 @@ export async function getRatingStats(
     next(error);
   }
 }
+
+/**
+ * Get all ratings (Admin & Employee).
+ * GET /api/ratings
+ */
+export async function getAllRatings(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const ratings = await Rating.find({})
+      .populate({
+        path: 'customerId',
+        populate: { path: 'userId', select: 'name email role' },
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: 'Ratings retrieved successfully.',
+      data: { ratings },
+    });
+  } catch (error) {
+    next(error);
+  }
+}

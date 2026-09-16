@@ -75,7 +75,7 @@ export const ratingService = {
   },
 
   /**
-   * Get overall CSAT rating statistics (Admin only).
+   * Get overall CSAT rating statistics (Admin & Employee).
    */
   async getRatingStats(): Promise<RatingStats | null> {
     try {
@@ -83,6 +83,18 @@ export const ratingService = {
       return res.data?.data?.stats || res.data?.data || null;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Get all customer feedback & reviews (Admin & Employee).
+   */
+  async getAllRatings(): Promise<RatingData[]> {
+    try {
+      const res = await api.get('/ratings');
+      return res.data?.data?.ratings || [];
+    } catch {
+      return [];
     }
   },
 };
