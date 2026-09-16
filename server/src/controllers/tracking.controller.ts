@@ -5,6 +5,7 @@ import Complaint from '../models/Complaint.js';
 import Rating from '../models/Rating.js';
 import Attachment from '../models/Attachment.js';
 import { getCannedResponses } from '../utils/cannedResponses.js';
+import { generateTrackingQRCode } from '../utils/qrGenerator.js';
 
 /**
  * Get public tracking information for a ticket or complaint (NO AUTH REQUIRED).
@@ -72,6 +73,18 @@ export async function getPublicTrackingInfo(
     const custObj = (item.customerId as unknown) as Record<string, any>;
     const empObj = (item.assignedTo as unknown) as Record<string, any>;
 
+    let qrCode = rawItem.qrCode || null;
+    if (!qrCode) {
+      qrCode = await generateTrackingQRCode(
+        type.toLowerCase() as 'ticket' | 'complaint',
+        item._id.toString()
+      );
+      if (qrCode) {
+        (item as any).qrCode = qrCode;
+        await item.save().catch(() => {});
+      }
+    }
+
     const publicData = {
       _id: item._id,
       type: normalizedType,
@@ -81,7 +94,7 @@ export async function getPublicTrackingInfo(
       priority: item.priority,
       status: item.status,
       slaDeadline: rawItem.slaDeadline || null,
-      qrCode: rawItem.qrCode || null,
+      qrCode: qrCode || null,
       customerName: custObj?.userId?.name || 'Customer',
       assignedToName: empObj?.userId?.name || null,
       rating: rating ? { rating: rating.rating, feedback: rating.feedback } : null,

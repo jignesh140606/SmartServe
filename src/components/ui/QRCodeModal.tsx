@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { QrCode, Copy, Check, ExternalLink, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
+import { QrCode, Copy, Check, ExternalLink, Download, Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 
@@ -21,8 +22,36 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   qrCodeDataUrl,
 }) => {
   const [copied, setCopied] = useState<boolean>(false);
+  const [effectiveQr, setEffectiveQr] = useState<string | null>(qrCodeDataUrl || null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const trackingUrl = `${window.location.origin}/track/${itemType}/${itemId}`;
+
+  useEffect(() => {
+    if (qrCodeDataUrl) {
+      setEffectiveQr(qrCodeDataUrl);
+      setIsGenerating(false);
+    } else if (isOpen && itemId && itemType) {
+      setIsGenerating(true);
+      QRCode.toDataURL(trackingUrl, {
+        width: 320,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+        errorCorrectionLevel: 'M',
+      })
+        .then((url) => {
+          setEffectiveQr(url);
+          setIsGenerating(false);
+        })
+        .catch((err) => {
+          console.error('[QRCodeModal] Error generating QR code client-side:', err);
+          setIsGenerating(false);
+        });
+    }
+  }, [isOpen, qrCodeDataUrl, trackingUrl, itemId, itemType]);
 
   const handleCopyLink = async () => {
     try {
@@ -35,9 +64,9 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   };
 
   const handleDownloadQR = () => {
-    if (!qrCodeDataUrl) return;
+    if (!effectiveQr) return;
     const link = document.createElement('a');
-    link.href = qrCodeDataUrl;
+    link.href = effectiveQr;
     link.download = `smartserve-${itemType}-${itemId.slice(-6)}-qr.png`;
     document.body.appendChild(link);
     link.click();
@@ -49,7 +78,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
       <div className="space-y-4 text-center">
         <div>
           <span className="inline-block px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            {itemType} #{itemId.slice(-6)}
+            {itemType} #{itemId.slice(-6).toUpperCase()}
           </span>
           <h3 className="text-sm font-semibold text-gray-900 mt-1 line-clamp-1">{itemTitle}</h3>
           <p className="text-xs text-gray-500 mt-1">
@@ -58,16 +87,21 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
         </div>
 
         <div className="flex justify-center p-4 bg-white rounded-xl border border-gray-200 shadow-xs max-w-xs mx-auto">
-          {qrCodeDataUrl ? (
+          {effectiveQr ? (
             <img
-              src={qrCodeDataUrl}
+              src={effectiveQr}
               alt={`QR Code for ${itemTitle}`}
-              className="w-48 h-48 rounded-lg"
+              className="w-48 h-48 rounded-lg shadow-2xs transition-transform duration-200 hover:scale-105"
             />
+          ) : isGenerating ? (
+            <div className="w-48 h-48 flex flex-col items-center justify-center bg-gray-50 rounded-lg text-gray-500">
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600 mb-2" />
+              <span className="text-xs font-medium">Rendering QR Code...</span>
+            </div>
           ) : (
             <div className="w-48 h-48 flex flex-col items-center justify-center bg-gray-50 rounded-lg text-gray-400">
               <QrCode className="w-12 h-12 mb-2 stroke-1" />
-              <span className="text-xs">QR Code Generating...</span>
+              <span className="text-xs">QR Code Unavailable</span>
             </div>
           )}
         </div>
@@ -113,7 +147,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           </a>
 
           <div className="flex gap-2">
-            {qrCodeDataUrl && (
+            {effectiveQr && (
               <Button
                 type="button"
                 variant="outline"
