@@ -262,15 +262,24 @@ export async function getRatingStats(
         ? complaintRatings.reduce((sum, r) => sum + r.rating, 0) / complaintRatings.length
         : 0;
 
+    const stats = {
+      totalRatings,
+      averageRating: Math.round(averageRating * 100) / 100,
+      avgTicketRating: Math.round(avgTicketRating * 100) / 100,
+      avgComplaintRating: Math.round(avgComplaintRating * 100) / 100,
+      distribution,
+      byType: {
+        tickets: { average: Math.round(avgTicketRating * 100) / 100, count: ticketRatings.length },
+        complaints: { average: Math.round(avgComplaintRating * 100) / 100, count: complaintRatings.length },
+      },
+    };
+
     res.status(200).json({
       success: true,
       message: 'CSAT statistics retrieved.',
       data: {
-        totalRatings,
-        averageRating: Math.round(averageRating * 100) / 100,
-        avgTicketRating: Math.round(avgTicketRating * 100) / 100,
-        avgComplaintRating: Math.round(avgComplaintRating * 100) / 100,
-        distribution,
+        stats,
+        ...stats,
       },
     });
   } catch (error) {

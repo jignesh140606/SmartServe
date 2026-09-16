@@ -330,7 +330,10 @@ export function AdminDashboard() {
     allUnifiedItems.length > 0
       ? Math.max(0, Math.round(((allUnifiedItems.length - breachedCount) / allUnifiedItems.length) * 100))
       : 100;
-  const csatAvg = ratingStats?.averageRating ? ratingStats.averageRating.toFixed(1) : '4.9';
+  const csatAvg =
+    ratingStats && ratingStats.totalRatings > 0
+      ? Number(ratingStats.averageRating).toFixed(1)
+      : '0.0';
   const csatTotal = ratingStats?.totalRatings || 0;
 
   return (

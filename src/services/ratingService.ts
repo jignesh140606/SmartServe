@@ -80,7 +80,7 @@ export const ratingService = {
   async getRatingStats(): Promise<RatingStats | null> {
     try {
       const res = await api.get('/ratings/stats');
-      return res.data?.data?.stats || null;
+      return res.data?.data?.stats || res.data?.data || null;
     } catch {
       return null;
     }
