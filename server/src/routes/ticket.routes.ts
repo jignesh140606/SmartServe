@@ -21,8 +21,8 @@ router.get('/', getTickets);
 router.get('/:id', getTicketById);
 router.put('/:id', updateTicket);
 
-// Status update (Admin or assigned Employee)
-router.patch('/:id/status', checkRole(['admin', 'employee']), updateTicketStatus);
+// Status update (Admin, assigned Employee, or ticket owner Customer to mark Resolved)
+router.patch('/:id/status', checkRole(['admin', 'employee', 'customer']), updateTicketStatus);
 
 // Assignment operation (Admin only)
 router.patch('/:id/assign', checkRole(['admin']), assignTicket);

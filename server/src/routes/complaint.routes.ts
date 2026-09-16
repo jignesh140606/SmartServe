@@ -21,8 +21,8 @@ router.get('/', getComplaints);
 router.get('/:id', getComplaintById);
 router.put('/:id', updateComplaint);
 
-// Status update (Admin or assigned Employee)
-router.patch('/:id/status', checkRole(['admin', 'employee']), updateComplaintStatus);
+// Status update (Admin, assigned Employee, or complaint owner Customer to mark Resolved)
+router.patch('/:id/status', checkRole(['admin', 'employee', 'customer']), updateComplaintStatus);
 
 // Assignment operation (Admin only)
 router.patch('/:id/assign', checkRole(['admin']), assignComplaint);

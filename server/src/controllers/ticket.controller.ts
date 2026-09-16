@@ -414,6 +414,24 @@ export async function updateTicketStatus(
         });
         return;
       }
+    } else if (req.user?.role === 'customer') {
+      const customer = await Customer.findOne({ userId: req.user._id });
+      if (!customer || ticket.customerId.toString() !== customer._id.toString()) {
+        res.status(403).json({
+          success: false,
+          message: 'Forbidden: You can only update tickets that you created.',
+          data: null,
+        });
+        return;
+      }
+      if (!['Resolved', 'Closed'].includes(status)) {
+        res.status(403).json({
+          success: false,
+          message: 'Forbidden: Customers can only mark tickets as Resolved or Closed.',
+          data: null,
+        });
+        return;
+      }
     }
 
     ticket.status = status as TicketStatus;

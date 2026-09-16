@@ -410,7 +410,7 @@ export async function updateComplaintStatus(
       return;
     }
 
-    // Role check for Employee
+    // Role check for Employee or Customer
     if (req.user?.role === 'employee') {
       const employee = await Employee.findOne({ userId: req.user._id });
       if (
@@ -421,6 +421,24 @@ export async function updateComplaintStatus(
         res.status(403).json({
           success: false,
           message: 'Forbidden: You are not assigned to update this complaint.',
+          data: null,
+        });
+        return;
+      }
+    } else if (req.user?.role === 'customer') {
+      const customer = await Customer.findOne({ userId: req.user._id });
+      if (!customer || complaint.customerId.toString() !== customer._id.toString()) {
+        res.status(403).json({
+          success: false,
+          message: 'Forbidden: You can only update complaints that you submitted.',
+          data: null,
+        });
+        return;
+      }
+      if (!['Resolved', 'Closed'].includes(status)) {
+        res.status(403).json({
+          success: false,
+          message: 'Forbidden: Customers can only mark complaints as Resolved or Closed.',
           data: null,
         });
         return;

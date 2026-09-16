@@ -1,33 +1,49 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 /**
  * Create a reusable Nodemailer transporter.
- * Falls back to Ethereal (test) account if SMTP credentials not configured.
+ * Supports Gmail (SMTP_SERVICE=gmail) or standard SMTP servers.
+ * Falls back to console logging if SMTP credentials are not configured.
  */
-function createTransporter() {
+let transporter: Transporter | null = null;
+
+function getTransporter(): Transporter | null {
+  if (transporter) return transporter;
+
+  const service = process.env.SMTP_SERVICE;
   const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
+  if (service === 'gmail' || (host && host.includes('gmail'))) {
+    if (user && pass) {
+      transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+      });
+      console.log(`[Email] Gmail SMTP transport initialized for: ${user}`);
+      return transporter;
+    }
+  }
+
   if (host && user && pass) {
-    return nodemailer.createTransport({
+    transporter = nodemailer.createTransport({
       host,
       port,
       secure: port === 465,
       auth: { user, pass },
     });
+    console.log(`[Email] Custom SMTP transport initialized for: ${host}:${port}`);
+    return transporter;
   }
 
-  // Fallback: log emails to console (no actual sending)
-  console.log('[Email] SMTP not configured. Emails will be logged to console only.');
+  console.log('[Email] Live SMTP not configured in server/.env. Emails are simulated & logged to console.');
   return null;
 }
-
-const transporter = createTransporter();
 
 interface EmailOptions {
   to: string;
@@ -43,16 +59,17 @@ async function sendEmail(options: EmailOptions): Promise<boolean> {
   const from = process.env.SMTP_FROM || 'SmartServe <noreply@smartserve.io>';
 
   try {
-    if (transporter) {
-      await transporter.sendMail({
+    const transport = getTransporter();
+    if (transport) {
+      await transport.sendMail({
         from,
         to: options.to,
         subject: options.subject,
         html: options.html,
       });
-      console.log(`[Email] Sent: "${options.subject}" → ${options.to}`);
+      console.log(`[Email] Live email sent: "${options.subject}" → ${options.to}`);
     } else {
-      console.log(`[Email Console] To: ${options.to} | Subject: ${options.subject}`);
+      console.log(`[Email Console Simulation] To: ${options.to} | Subject: ${options.subject}`);
     }
     return true;
   } catch (error) {

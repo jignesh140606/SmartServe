@@ -336,6 +336,33 @@ export function CustomerDashboard() {
     }
   };
 
+  const [solvingItemId, setSolvingItemId] = useState<string | null>(null);
+
+  const handleMarkItemSolved = async (item: { id: string; kind: 'Ticket' | 'Complaint'; title: string }) => {
+    try {
+      setSolvingItemId(item.id);
+      if (item.kind === 'Ticket') {
+        await ticketService.updateTicketStatus(item.id, 'Resolved');
+      } else {
+        await complaintService.updateComplaintStatus(item.id, 'Resolved');
+      }
+      setActionSuccess(`Great! ${item.kind} "${item.title}" has been marked as Solved. Please share your rating!`);
+      await Promise.all([fetchTickets(), fetchComplaints(), fetchMyRatings()]);
+      setActiveRatingModal({
+        isOpen: true,
+        itemType: item.kind,
+        itemId: item.id,
+        title: item.title,
+      });
+      setTimeout(() => setActionSuccess(null), 5000);
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }>;
+      alert(axiosError.response?.data?.message || `Failed to mark ${item.kind.toLowerCase()} as solved.`);
+    } finally {
+      setSolvingItemId(null);
+    }
+  };
+
   // All combined customer items
   const combinedCustomerFeed: CustomerFeedItem[] = [
     ...tickets.map((t) => ({
@@ -740,13 +767,21 @@ export function CustomerDashboard() {
                             </Button>
                           )
                         ) : (
-                          <span
-                            className="inline-flex items-center text-[11px] font-medium text-neutral-400 bg-neutral-100/70 border border-neutral-200 px-2 py-1 rounded-md cursor-help whitespace-nowrap"
-                            title="CSAT rating unlocks automatically once your issue is marked Resolved by the support team."
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2.5 text-emerald-700 bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5"
+                            title="Mark this issue as solved from your side"
+                            disabled={solvingItemId === item.id}
+                            onClick={() => handleMarkItemSolved({ id: item.id, kind: item.kind, title: item.title })}
                           >
-                            <Star className="w-3 h-3 text-neutral-300 mr-1" />
-                            Rate (On Resolve)
-                          </span>
+                            {solvingItemId === item.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                            ) : (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            )}
+                            <span>Mark as Solved</span>
+                          </Button>
                         )}
                         <div className="text-right ml-1">
                           <Badge status={item.status as any} dot size="sm">
@@ -941,13 +976,21 @@ export function CustomerDashboard() {
                                   </Button>
                                 )
                               ) : (
-                                <span
-                                  className="inline-flex items-center text-[11px] font-medium text-neutral-400 bg-neutral-100/70 border border-neutral-200 px-2 py-0.5 rounded-md cursor-help whitespace-nowrap"
-                                  title="CSAT rating unlocks automatically once your ticket is marked Resolved by the support team."
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-emerald-700 bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100 text-xs font-semibold flex items-center gap-1"
+                                  title="Mark this ticket as solved from your side"
+                                  disabled={solvingItemId === t._id}
+                                  onClick={() => handleMarkItemSolved({ id: t._id, kind: 'Ticket', title: t.title })}
                                 >
-                                  <Star className="w-3 h-3 text-neutral-300 mr-1" />
-                                  Rate (On Resolve)
-                                </span>
+                                  {solvingItemId === t._id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  )}
+                                  <span>Solved</span>
+                                </Button>
                               )}
                               {t.status === 'Open' && !t.assignedTo ? (
                                 <Button
@@ -1087,13 +1130,21 @@ export function CustomerDashboard() {
                                   </Button>
                                 )
                               ) : (
-                                <span
-                                  className="inline-flex items-center text-[11px] font-medium text-neutral-400 bg-neutral-100/70 border border-neutral-200 px-2 py-0.5 rounded-md cursor-help whitespace-nowrap"
-                                  title="CSAT rating unlocks automatically once your complaint is marked Resolved by the support team."
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-emerald-700 bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100 text-xs font-semibold flex items-center gap-1"
+                                  title="Mark this complaint as solved from your side"
+                                  disabled={solvingItemId === c._id}
+                                  onClick={() => handleMarkItemSolved({ id: c._id, kind: 'Complaint', title: c.title })}
                                 >
-                                  <Star className="w-3 h-3 text-neutral-300 mr-1" />
-                                  Rate (On Resolve)
-                                </span>
+                                  {solvingItemId === c._id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  )}
+                                  <span>Solved</span>
+                                </Button>
                               )}
                               {c.status === 'Open' && !c.assignedTo ? (
                                 <Button
