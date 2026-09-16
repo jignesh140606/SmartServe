@@ -105,32 +105,74 @@ export async function submitRating(
       return;
     }
 
-    // Check for existing rating (upsert)
+    // Check for existing rating: feedback is only allowed once
     const existingRating = await Rating.findOne({
       itemType,
       itemId,
       customerId: customer._id,
     });
 
-    let savedRating;
     if (existingRating) {
-      existingRating.rating = ratingValue;
-      existingRating.feedback = feedback ? String(feedback).trim() : '';
-      savedRating = await existingRating.save();
-    } else {
-      savedRating = await Rating.create({
-        itemId,
-        itemType,
-        customerId: customer._id,
-        rating: ratingValue,
-        feedback: feedback ? String(feedback).trim() : '',
+      res.status(400).json({
+        success: false,
+        message: 'Feedback has already been submitted for this item. Rating is only allowed once.',
+        data: null,
       });
+      return;
     }
 
-    res.status(existingRating ? 200 : 201).json({
+    const savedRating = await Rating.create({
+      itemId,
+      itemType,
+      customerId: customer._id,
+      rating: ratingValue,
+      feedback: feedback ? String(feedback).trim() : '',
+    });
+
+    res.status(201).json({
       success: true,
-      message: existingRating ? 'Rating updated successfully.' : 'Rating submitted successfully.',
+      message: 'Rating submitted successfully.',
       data: { rating: savedRating },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get all ratings submitted by the current customer.
+ * GET /api/ratings/my-ratings
+ */
+export async function getCustomerRatings(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+        data: null,
+      });
+      return;
+    }
+
+    const customer = await Customer.findOne({ userId: req.user._id });
+    if (!customer) {
+      res.status(200).json({
+        success: true,
+        message: 'No customer profile found.',
+        data: { ratings: [] },
+      });
+      return;
+    }
+
+    const ratings = await Rating.find({ customerId: customer._id });
+    res.status(200).json({
+      success: true,
+      message: 'Customer ratings retrieved.',
+      data: { ratings },
     });
   } catch (error) {
     next(error);

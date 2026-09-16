@@ -63,6 +63,18 @@ export const ratingService = {
   },
 
   /**
+   * Get all ratings submitted by the current customer.
+   */
+  async getMyRatings(): Promise<RatingData[]> {
+    try {
+      const res = await api.get('/ratings/my-ratings');
+      return res.data?.data?.ratings || [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Get overall CSAT rating statistics (Admin only).
    */
   async getRatingStats(): Promise<RatingStats | null> {

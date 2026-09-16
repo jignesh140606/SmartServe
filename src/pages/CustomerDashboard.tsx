@@ -62,6 +62,7 @@ import {
 import { formatTimeAgo } from '../lib/dateUtils';
 import { AnalyticsView } from './shared/AnalyticsView';
 import { SettingsView } from './shared/SettingsView';
+import { ratingService } from '../services/ratingService';
 import type { AxiosError } from 'axios';
 
 type CustomerViewSection = 'overview' | 'tickets' | 'complaints' | 'analytics' | 'settings';
@@ -166,11 +167,26 @@ export function CustomerDashboard() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [myRatingsMap, setMyRatingsMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchTickets();
     fetchComplaints();
+    fetchMyRatings();
   }, []);
+
+  const fetchMyRatings = async () => {
+    try {
+      const ratings = await ratingService.getMyRatings();
+      const map: Record<string, number> = {};
+      ratings.forEach((r) => {
+        map[r.itemId] = r.rating;
+      });
+      setMyRatingsMap(map);
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchTickets = async () => {
     try {
@@ -696,23 +712,33 @@ export function CustomerDashboard() {
                           <QrCode className="w-3.5 h-3.5" />
                         </Button>
                         {(item.status === 'Resolved' || item.status === 'Closed') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
-                            title="Rate Experience"
-                            onClick={() =>
-                              setActiveRatingModal({
-                                isOpen: true,
-                                itemType: item.kind,
-                                itemId: item.id,
-                                title: item.title,
-                              })
-                            }
-                          >
-                            <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
-                            Rate
-                          </Button>
+                          myRatingsMap[item.id] ? (
+                            <span
+                              className="inline-flex items-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md cursor-default"
+                              title="Feedback Submitted (Only allowed once)"
+                            >
+                              <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                              {myRatingsMap[item.id]}★ Rated
+                            </span>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
+                              title="Rate Experience"
+                              onClick={() =>
+                                setActiveRatingModal({
+                                  isOpen: true,
+                                  itemType: item.kind,
+                                  itemId: item.id,
+                                  title: item.title,
+                                })
+                              }
+                            >
+                              <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                              Rate
+                            </Button>
+                          )
                         )}
                         <div className="text-right ml-1">
                           <Badge status={item.status as any} dot size="sm">
@@ -879,23 +905,33 @@ export function CustomerDashboard() {
                                 <QrCode className="w-3.5 h-3.5" />
                               </Button>
                               {(t.status === 'Resolved' || t.status === 'Closed') && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
-                                  title="Rate Experience"
-                                  onClick={() =>
-                                    setActiveRatingModal({
-                                      isOpen: true,
-                                      itemType: 'Ticket',
-                                      itemId: t._id,
-                                      title: t.title,
-                                    })
-                                  }
-                                >
-                                  <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
-                                  Rate
-                                </Button>
+                                myRatingsMap[t._id] ? (
+                                  <span
+                                    className="inline-flex items-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md cursor-default"
+                                    title="Feedback Submitted (Only allowed once)"
+                                  >
+                                    <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                                    {myRatingsMap[t._id]}★ Rated
+                                  </span>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
+                                    title="Rate Experience"
+                                    onClick={() =>
+                                      setActiveRatingModal({
+                                        isOpen: true,
+                                        itemType: 'Ticket',
+                                        itemId: t._id,
+                                        title: t.title,
+                                      })
+                                    }
+                                  >
+                                    <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                                    Rate
+                                  </Button>
+                                )
                               )}
                               {t.status === 'Open' && !t.assignedTo ? (
                                 <Button
@@ -1007,23 +1043,33 @@ export function CustomerDashboard() {
                                 <QrCode className="w-3.5 h-3.5" />
                               </Button>
                               {(c.status === 'Resolved' || c.status === 'Closed') && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
-                                  title="Rate Experience"
-                                  onClick={() =>
-                                    setActiveRatingModal({
-                                      isOpen: true,
-                                      itemType: 'Complaint',
-                                      itemId: c._id,
-                                      title: c.title,
-                                    })
-                                  }
-                                >
-                                  <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
-                                  Rate
-                                </Button>
+                                myRatingsMap[c._id] ? (
+                                  <span
+                                    className="inline-flex items-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md cursor-default"
+                                    title="Feedback Submitted (Only allowed once)"
+                                  >
+                                    <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                                    {myRatingsMap[c._id]}★ Rated
+                                  </span>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-amber-600 border-amber-300 hover:bg-amber-50 text-xs"
+                                    title="Rate Experience"
+                                    onClick={() =>
+                                      setActiveRatingModal({
+                                        isOpen: true,
+                                        itemType: 'Complaint',
+                                        itemId: c._id,
+                                        title: c.title,
+                                      })
+                                    }
+                                  >
+                                    <Star className="w-3 h-3 text-amber-500 fill-amber-400 mr-1" />
+                                    Rate
+                                  </Button>
+                                )
                               )}
                               {c.status === 'Open' && !c.assignedTo ? (
                                 <Button
@@ -1335,7 +1381,8 @@ export function CustomerDashboard() {
         itemType={activeRatingModal.itemType}
         itemId={activeRatingModal.itemId}
         itemTitle={activeRatingModal.title}
-        onRatingSubmitted={() => {
+        onRatingSubmitted={(rating) => {
+          setMyRatingsMap((prev) => ({ ...prev, [rating.itemId]: rating.rating }));
           fetchTickets();
           fetchComplaints();
         }}

@@ -28,6 +28,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [fetching, setFetching] = useState<boolean>(true);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [existingRating, setExistingRating] = useState<RatingData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,10 +36,12 @@ export const RatingModal: React.FC<RatingModalProps> = ({
       setFetching(true);
       setError(null);
       setSubmitted(false);
+      setExistingRating(null);
       ratingService
         .getRating(itemType, itemId)
         .then((existing) => {
           if (existing) {
+            setExistingRating(existing);
             setRating(existing.rating);
             setFeedback(existing.feedback || '');
           } else {
@@ -52,6 +55,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (existingRating) return;
     if (rating < 1 || rating > 5) return;
 
     try {
@@ -64,6 +68,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({
         feedback: feedback.trim(),
       });
       setSubmitted(true);
+      setExistingRating(res);
       if (onRatingSubmitted) {
         onRatingSubmitted(res);
       }
@@ -96,6 +101,52 @@ export const RatingModal: React.FC<RatingModalProps> = ({
           <p className="text-sm text-gray-500">
             Your CSAT rating helps us continuously improve our service quality.
           </p>
+        </div>
+      ) : existingRating ? (
+        <div className="space-y-4 py-2">
+          <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3 text-xs text-amber-900">
+            <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-sm text-amber-950">Rating Already Submitted</p>
+              <p className="text-amber-700 mt-0.5">
+                You have already submitted feedback for this {itemType.toLowerCase()}. Feedback is only allowed one time per item.
+              </p>
+            </div>
+          </div>
+
+          <div className="text-center p-4 bg-gray-50 rounded-xl space-y-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">
+              Your Recorded Rating
+            </p>
+            <div className="flex justify-center items-center gap-1.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={`w-7 h-7 ${
+                    star <= existingRating.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200'
+                  }`}
+                />
+              ))}
+            </div>
+            <p className="text-sm font-bold text-amber-600">
+              {starLabels[existingRating.rating - 1]} ({existingRating.rating} / 5)
+            </p>
+
+            {existingRating.feedback ? (
+              <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200 text-left">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                  Your Comments
+                </p>
+                <p className="text-xs text-gray-700 italic">"{existingRating.feedback}"</p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <Button type="button" variant="primary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
